@@ -14,6 +14,7 @@ without needing to care about handling device prompts and terminal modes.
 * Mikrotik RouterOS
 * Arista EOS
 * Juniper JunOS
+* Huawei OLT (New device in this fork)
 
 ## Installation
 get gomiko pkg: `go get -u github.com/Ali-aqrabawi/gomiko/pkg`.
@@ -53,6 +54,46 @@ func main() {
  
 }
 ```
+or use new device:
+```go
+import (
+	"fmt"
+	"log"
+	"github.com/Ali-aqrabawi/gomiko/pkg"
+)
+
+func main() {
+	
+     device, err := gomiko.NewDevice("192.168.1.1", "admin", "password", "huawei_olt", 22)
+     
+     if err != nil {
+     	log.Fatal(err)
+     }
+     
+     //Connect to device
+     if err := device.Connect(); err != nil {
+     	log.Fatal(err)
+     }
+     
+     // send command
+     output1, _ := device.SendCommand("display board 0")
+     
+     // send a set of config commands
+     commands := []string{
+     	"interface gpon 0/0",
+	"ont add 0 0 sn-auth 4857XXXXXXXXXX\n\n",
+	"quit",
+	"service-port 1 vlan 1 gpon 0/0/0 ont 0"}
+     output2, _ := device.SendConfigSet(commands)
+     
+     device.Disconnect()
+     
+     fmt.Println(output1)
+     fmt.Println(output2)
+ 
+}
+```
+
 
 ## create device with enable password:
 ```go
@@ -65,6 +106,25 @@ import (
 func main() {
 	
      device, err := gomiko.NewDevice("192.168.1.1", "admin", "password", "cisco_ios", 22, gomiko.SecretOption("enablePass"))
+     
+     if err != nil {
+     	log.Fatal(err)
+     }     
+
+}
+```
+
+## create device Huawei OLT with enable or config mode:
+```go
+import (
+	"fmt"
+	"log"
+	"github.com/Ali-aqrabawi/gomiko/pkg"
+)
+
+func main() {
+	// or use SetMode("enable")
+     device, err := gomiko.NewDevice("192.168.1.1", "admin", "password", "cisco_ios", 22, gomiko.SetMode("config"))
      
      if err != nil {
      	log.Fatal(err)
