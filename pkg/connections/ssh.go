@@ -3,11 +3,17 @@ package connections
 import (
 	"errors"
 	"fmt"
-	"golang.org/x/crypto/ssh"
 	"io"
 	"log"
 	"time"
+
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
 )
+
+var keyExchanges = []string{
+	"diffie-hellman-group-exchange-sha1",
+	"diffie-hellman-group1-sha1"}
 
 var ciphers = []string{
 	"aes256-ctr",
@@ -35,19 +41,28 @@ func NewSSHConn(hostname string, username string, password string, port uint8) (
 	sshConn.addr = addr
 	sshConn.username = username
 	sshConn.password = password
-
 	return sshConn, nil
 
 }
 
 func (c *SSHConn) Connect() error {
+	generateHandshake(c)
+	hostKeyCallback, err := knownhosts.New("./engine/connections/keys/known_hosts")
+	if err != nil {
+		log.Fatal("could not create hostkeycallback function: ", err)
+	}
+
+	// Deleted ssh.InsecureIgnoreHostKey() to hostKeyCallback
 	interactive := getInteractiveCallBack(c.password)
 	sshConfig := &ssh.ClientConfig{
-		User:            c.username,
-		Auth:            []ssh.AuthMethod{ssh.Password(c.password), ssh.KeyboardInteractive(interactive)},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		User: c.username,
+		Auth: []ssh.AuthMethod{
+			ssh.Password(c.password),
+			ssh.KeyboardInteractive(interactive)},
+		HostKeyCallback: hostKeyCallback,
 		Timeout:         6 * time.Second,
 	}
+	sshConfig.KeyExchanges = append(sshConfig.KeyExchanges, keyExchanges...)
 	sshConfig.Ciphers = append(sshConfig.Ciphers, ciphers...)
 	conn, err := ssh.Dial("tcp", c.addr, sshConfig)
 	if err != nil {
@@ -95,6 +110,10 @@ func (c *SSHConn) Disconnect() {
 
 }
 
+func (c *SSHConn) GetReader() io.Reader {
+	return c.reader
+}
+
 func (c *SSHConn) Read() (string, error) {
 
 	buff := make([]byte, 204800)
@@ -120,8 +139,6 @@ func getInteractiveCallBack(password string) ssh.KeyboardInteractiveChallenge {
 		for n := range questions {
 			answers[n] = password
 		}
-
 		return answers, nil
 	}
-
 }

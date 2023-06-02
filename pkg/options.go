@@ -10,3 +10,10 @@ func SecretOption(secret string) func(device interface{}) error {
 		return nil
 	}
 }
+
+func SetMode(mode string) func(device interface{}) error {
+	return func(device interface{}) error {
+		device.(types.HuaweiDevice).SetMode(mode)
+		return nil
+	}
+}
